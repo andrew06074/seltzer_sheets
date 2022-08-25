@@ -43,6 +43,7 @@ master_draft = master_draft[['PLAYER NAME','RK','Position','TEAM','BYE WEEK','PP
 master_draft_forag = master_draft[['PLAYER NAME','RK','Position','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']]
 
 master_draft_forag = master_draft_forag[['PLAYER NAME','RK','Position','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']]
+master_draft_forag.columns = ['PLAYER NAME','HPPR OVERALL RANK','POS','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']
 
 gb = GridOptionsBuilder.from_dataframe(master_draft_forag)
 gb.configure_pagination(paginationAutoPageSize=True) #Add pagination
