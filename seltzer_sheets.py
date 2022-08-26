@@ -54,7 +54,7 @@ avg_str = f"""
                 font: bold 35px Courier;text-align: center;
                 }}
                 </style>
-                <p class="a">Quarterbacks</p>
+                <p class="a">QB</p>
                 """
 st.markdown(avg_str, unsafe_allow_html=True)
 
@@ -124,7 +124,7 @@ avg_str = f"""
                 font: bold 35px Courier;text-align: center;
                 }}
                 </style>
-                <p class="a">Runningbacks</p>
+                <p class="a">RB</p>
                 """
 st.markdown(avg_str, unsafe_allow_html=True)
 
@@ -190,7 +190,7 @@ avg_str = f"""
                 font: bold 35px Courier;text-align: center;
                 }}
                 </style>
-                <p class="a">Widereceivers</p>
+                <p class="a">WR</p>
                 """
 st.markdown(avg_str, unsafe_allow_html=True)
 
@@ -255,7 +255,7 @@ avg_str = f"""
                 font: bold 35px Courier;text-align: center;
                 }}
                 </style>
-                <p class="a">Tightends</p>
+                <p class="a">TE</p>
                 """
 st.markdown(avg_str, unsafe_allow_html=True)
 
