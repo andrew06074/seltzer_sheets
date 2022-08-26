@@ -9,8 +9,6 @@ import base64
 
 image = Image.open('logo.png')
 st.image(image)
-
-st.write(""" - Half-point PPR rankings""")
 st.write(""" - Filter to your desired scope using the sidebar""")
 st.write(""" - Select players using the checkboxs for additional analysis""")
 

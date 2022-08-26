@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 from PIL import Image
+import base64
 
 image = Image.open('logo.png')
 st.image(image)
@@ -10,6 +11,19 @@ st.write(""" - Filter to your desired scope using the sidebar""")
 st.write(""" - Select players using the checkboxs for additional analysis""")
 st.write(""" - [Input league settings into BeerSheets and save generated CSV file](https://footballabsurdity.com/beersheet-request-form/)""")
 
+if st.checkbox('Show tutorial'):
+    
+    file_ = open("tutorial.gif", "rb")
+    contents = file_.read()
+    data_url = base64.b64encode(contents).decode("utf-8")
+    file_.close()
+
+    st.markdown(
+        f'<img src="data:image/gif;base64,{data_url}" alt="cat gif">',
+        unsafe_allow_html=True,
+    )
+    st.write('Made with ag-grid & streamlit')
+    st.write('Data from fantasypros and fantasydata')
 
 uploaded_file = st.file_uploader("Upload csv generate from BeerSheets", type="csv")
 
