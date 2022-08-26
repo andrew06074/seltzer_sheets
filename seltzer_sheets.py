@@ -2,7 +2,6 @@ from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from tabula import read_pdf
 from PIL import Image
 
 image = Image.open('logo.png')
