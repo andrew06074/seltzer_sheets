@@ -1,65 +1,65 @@
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
-
-import streamlit as st
 import pandas as pd
+import streamlit as st
 import plotly.express as px
+from tabula import read_pdf
 from PIL import Image
-import base64
-
 
 image = Image.open('logo.png')
 st.image(image)
-
-st.write(""" - Half-point PPR rankings""")
 st.write(""" - Filter to your desired scope using the sidebar""")
 st.write(""" - Select players using the checkboxs for additional analysis""")
+st.write(""" - [Input league settings into BeerSheets and save generated CSV file](https://footballabsurdity.com/beersheet-request-form/)""")
 
-if st.checkbox('See notes'):
-    
-    file_ = open("tutorial.gif", "rb")
-    contents = file_.read()
-    data_url = base64.b64encode(contents).decode("utf-8")
-    file_.close()
 
-    st.markdown(
-        f'<img src="data:image/gif;base64,{data_url}" alt="cat gif">',
-        unsafe_allow_html=True,
-    )
-    st.write('Made with ag-grid & streamlit')
-    st.write('Data from fantasypros and fantasydata')
+uploaded_file = st.file_uploader("Upload csv generate from BeerSheets", type="csv")
 
-draft_rankings = pd.read_csv('FantasyPros_2022_Draft_ALL_Rankings_notes.csv')
-past_5_years = pd.read_csv('past_5_year.csv')
+if uploaded_file is None:
+    data=pd.read_csv('beer_sheet.csv')
+else:
+    data = pd.read_csv(uploaded_file)
 
-draft_rankings_raw = draft_rankings
-draft_rankings = draft_rankings[['PLAYER NAME','RK','TEAM','BYE WEEK']]
 
-draft_player_notes = draft_rankings_raw[['PLAYER NAME','NOTES']]
+notes_data = pd.read_csv('FantasyPros_2022_Draft_ALL_Rankings_notes.csv')
 
-master_draft = pd.merge(draft_rankings,past_5_years,how='left',on='PLAYER NAME')
+last_5_data = pd.read_csv('past_5_year.csv')
 
-master_draft = master_draft[['PLAYER NAME','RK','Position','TEAM','BYE WEEK','PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
+data = data[['Name','Pos','Rank','Tier','Tm/Bye','Average','Stdev','ECR','ECR VS. ADP','PS']]
+data.columns = ['Player','Position','Rank','Tier','Team/Bye','Value','Stdev','ECR','ECR VS. ADP','Positional Saturation']
 
-master_draft_forag = master_draft[['PLAYER NAME','RK','Position','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']]
+qb_df = data.loc[data['Position']=='QB']
+rb_df = data.loc[data['Position']=='RB']
+wr_df = data.loc[data['Position']=='WR'] 
+te_df = data.loc[data['Position']=='TE']
 
-master_draft_forag = master_draft_forag[['PLAYER NAME','RK','Position','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']]
-master_draft_forag.columns = ['PLAYER NAME','OVERALL RANK','POS','PPG_2021','PPG_2020','PPG_2019','PPG_2018','PPG_2017']
 
-gb = GridOptionsBuilder.from_dataframe(master_draft_forag)
+
+##QB
+avg_str = f"""
+                <style>
+                p.a {{
+                font: bold 35px Courier;text-align: center;
+                }}
+                </style>
+                <p class="a">Quarterbacks</p>
+                """
+st.markdown(avg_str, unsafe_allow_html=True)
+
+gb = GridOptionsBuilder.from_dataframe(qb_df)
 gb.configure_pagination(paginationAutoPageSize=True) #Add pagination
 gb.configure_side_bar() #Add a sidebar
 gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
 gridOptions = gb.build()
 
 grid_response = AgGrid(
-    master_draft_forag,
+    qb_df,
     gridOptions=gridOptions,
     data_return_mode='AS_INPUT', 
     update_mode='MODEL_CHANGED', 
     fit_columns_on_grid_load=False,
     theme='blue', #Add theme color to the table
     enable_enterprise_modules=True,
-    height=375, 
+    height=400, 
     width='100%',
     reload_data=False
 )
@@ -68,106 +68,234 @@ data = grid_response['data']
 selected = grid_response['selected_rows'] 
 df = pd.DataFrame(selected) #Pass the selected rows to a new dataframe df
 
+if not df.empty: 
+    col1,col2,col3 = st.columns(3)
 
-#create cols
-
-col1, col2 = st.columns(2)
-
-for intex, row in df.iterrows():
     with col1:
-        st.subheader(row['PLAYER NAME'])
-
-        #locate notes for selected player
-        returned_search = draft_player_notes.loc[draft_player_notes['PLAYER NAME'] == row['PLAYER NAME']]
-        st.write(returned_search['NOTES'].iloc[0])
+        fig = px.bar(df,x='Player',y='Value',width=300, height=200)
+        st.plotly_chart(fig)
 
     with col2:
-        st.write('   ')
-        st.write('   ')
-        st.write('   ')
-        st.write('   ')
-        st.write('   ')
-
-        #locate previous season for selected player
-        return_prev_year_df = master_draft.loc[master_draft['PLAYER NAME'] ==row['PLAYER NAME']]
-        return_prev_year_df = return_prev_year_df[['PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
-        player_his_data = return_prev_year_df.iloc[0]
-
-        player_his_data = pd.DataFrame(player_his_data)
-        player_his_data = player_his_data.reset_index()
-        player_his_data.columns=['Season','Average PPG']
-        player_his_data = player_his_data.dropna()
-
-        career_avg = player_his_data['Average PPG'].sum() / player_his_data.shape[0]
-
-        
-        fig = px.bar(player_his_data,x='Season',y='Average PPG',width=400, height=300)
-        #fig.update_traces(marker_color='blue')
-
-        fig.add_annotation(
-            text = ''
-            , showarrow=False
-            , x = .1
-            , y = .3
-            , xref='paper'
-            , yref='paper' 
-            , xanchor='left'
-            , yanchor='top'
-            , xshift=1
-            , yshift=0
-            , font=dict(size=14, color="black")
-            , align="left"
-            ,)
-
-       
-
-        team = master_draft.loc[master_draft['PLAYER NAME'] ==row['PLAYER NAME']]
-        team = team['TEAM'].iloc[0]
-        bye = master_draft.loc[master_draft['PLAYER NAME'] ==row['PLAYER NAME']]
-        bye= bye['BYE WEEK'].iloc[0]
-
-        player_str =  f"""
-                <style>
-                p.a {{
-                font: bold 12px Courier;text-align: center;
-                }}
-                </style>
-                <p class="a">Player: {row['PLAYER NAME']}</p>
-                """
-        st.markdown(player_str, unsafe_allow_html=True)
-
-
-        
-        team_str = f"""
-                <style>
-                p.a {{
-                font: bold 12px Courier;text-align: center;
-                }}
-                </style>
-                <p class="a">Team: {team}</p>
-                """
-        st.markdown(team_str, unsafe_allow_html=True)
-
-        average = str(round(career_avg,2))
-
-        avg_str = f"""
-                <style>
-                p.a {{
-                font: bold 12px Courier;text-align: center;
-                }}
-                </style>
-                <p class="a">Average PPG last 5 seasons: {average}</p>
-                """
-        st.markdown(avg_str, unsafe_allow_html=True)
-
-        bye_str =  f"""
-                <style>
-                p.a {{
-                font: bold 12px Courier;text-align: center;
-                }}
-                </style>
-                <p class="a">Bye week: {bye}</p>
-                """
-        st.markdown(bye_str, unsafe_allow_html=True)
+        fig = px.bar(df,x='Player',y='ECR VS. ADP',width=300, height=200)
         st.plotly_chart(fig)
-       
+    
+    with col3:
+        fig = px.bar(df,x='Player',y='Positional Saturation',width=300, height=200)
+        st.plotly_chart(fig)
+    
+    for index,row in df.iterrows():
+        player_notes = notes_data.loc[notes_data['PLAYER NAME']==row['Player']]
+        st.subheader(player_notes['PLAYER NAME'].iloc[0])
+        st.write(player_notes['NOTES'].iloc[0])
+
+    df_for_vis = []
+    for index,row in df.iterrows():
+        last_5_scoped = last_5_data.loc[last_5_data['PLAYER NAME']==row['Player']]
+        last_5_scoped = last_5_scoped[['PLAYER NAME','PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
+        last_5_scoped.columns = ['PLAYER NAME','2017','2018','2019','2020','2021']
+        df_for_vis.append(last_5_scoped)
+        
+    df_for_vis = pd.concat(df_for_vis)
+    df_for_vis_melted = df_for_vis.melt(id_vars=['PLAYER NAME'],var_name='Season',value_name='Average PPG')
+    fig = px.line(df_for_vis_melted,x='Season',y='Average PPG',color='PLAYER NAME')
+    st.plotly_chart(fig)
+
+
+    
+        
+
+##RB
+avg_str = f"""
+                <style>
+                p.a {{
+                font: bold 35px Courier;text-align: center;
+                }}
+                </style>
+                <p class="a">Runningbacks</p>
+                """
+st.markdown(avg_str, unsafe_allow_html=True)
+
+gb = GridOptionsBuilder.from_dataframe(rb_df)
+gb.configure_pagination(paginationAutoPageSize=True) #Add pagination
+gb.configure_side_bar() #Add a sidebar
+gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+gridOptions = gb.build()
+
+grid_response = AgGrid(
+    rb_df,
+    gridOptions=gridOptions,
+    data_return_mode='AS_INPUT', 
+    update_mode='MODEL_CHANGED', 
+    fit_columns_on_grid_load=False,
+    theme='blue', #Add theme color to the table
+    enable_enterprise_modules=True,
+    height=400, 
+    width='100%',
+    reload_data=False
+)
+
+data = grid_response['data']
+selected = grid_response['selected_rows'] 
+df = pd.DataFrame(selected) #Pass the selected rows to a new dataframe df
+
+if not df.empty: 
+    col1,col2,col3 = st.columns(3)
+
+    with col1:
+        fig = px.bar(df,x='Player',y='Value',width=300, height=200)
+        st.plotly_chart(fig)
+
+    with col2:
+        fig = px.bar(df,x='Player',y='ECR VS. ADP',width=300, height=200)
+        st.plotly_chart(fig)
+    
+    with col3:
+        fig = px.bar(df,x='Player',y='Positional Saturation',width=300, height=200)
+        st.plotly_chart(fig)
+
+    for index,row in df.iterrows():
+        player_notes = notes_data.loc[notes_data['PLAYER NAME']==row['Player']]
+        st.subheader(player_notes['PLAYER NAME'].iloc[0])
+        st.write(player_notes['NOTES'].iloc[0])
+
+    df_for_vis = []
+    for index,row in df.iterrows():
+        last_5_scoped = last_5_data.loc[last_5_data['PLAYER NAME']==row['Player']]
+        last_5_scoped = last_5_scoped[['PLAYER NAME','PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
+        last_5_scoped.columns = ['PLAYER NAME','2017','2018','2019','2020','2021']
+        df_for_vis.append(last_5_scoped)
+        
+    df_for_vis = pd.concat(df_for_vis)
+    df_for_vis_melted = df_for_vis.melt(id_vars=['PLAYER NAME'],var_name='Season',value_name='Average PPG')
+    fig = px.line(df_for_vis_melted,x='Season',y='Average PPG',color='PLAYER NAME')
+    st.plotly_chart(fig)
+
+##WR
+avg_str = f"""
+                <style>
+                p.a {{
+                font: bold 35px Courier;text-align: center;
+                }}
+                </style>
+                <p class="a">Widereceivers</p>
+                """
+st.markdown(avg_str, unsafe_allow_html=True)
+
+gb = GridOptionsBuilder.from_dataframe(wr_df)
+gb.configure_pagination(paginationAutoPageSize=True) #Add pagination
+gb.configure_side_bar() #Add a sidebar
+gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+gridOptions = gb.build()
+
+grid_response = AgGrid(
+    wr_df,
+    gridOptions=gridOptions,
+    data_return_mode='AS_INPUT', 
+    update_mode='MODEL_CHANGED', 
+    fit_columns_on_grid_load=False,
+    theme='blue', #Add theme color to the table
+    enable_enterprise_modules=True,
+    height=400, 
+    width='100%',
+    reload_data=False
+)
+
+data = grid_response['data']
+selected = grid_response['selected_rows'] 
+df = pd.DataFrame(selected) #Pass the selected rows to a new dataframe df
+
+if not df.empty: 
+    col1,col2,col3 = st.columns(3)
+
+    with col1:
+        fig = px.bar(df,x='Player',y='Value',width=300, height=200)
+        st.plotly_chart(fig)
+
+    with col2:
+        fig = px.bar(df,x='Player',y='ECR VS. ADP',width=300, height=200)
+        st.plotly_chart(fig)
+    
+    with col3:
+        fig = px.bar(df,x='Player',y='Positional Saturation',width=300, height=200)
+        st.plotly_chart(fig)
+    for index,row in df.iterrows():
+        player_notes = notes_data.loc[notes_data['PLAYER NAME']==row['Player']]
+        st.subheader(player_notes['PLAYER NAME'].iloc[0])
+        st.write(player_notes['NOTES'].iloc[0])
+
+    df_for_vis = []
+    for index,row in df.iterrows():
+        last_5_scoped = last_5_data.loc[last_5_data['PLAYER NAME']==row['Player']]
+        last_5_scoped = last_5_scoped[['PLAYER NAME','PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
+        last_5_scoped.columns = ['PLAYER NAME','2017','2018','2019','2020','2021']
+        df_for_vis.append(last_5_scoped)
+        
+    df_for_vis = pd.concat(df_for_vis)
+    df_for_vis_melted = df_for_vis.melt(id_vars=['PLAYER NAME'],var_name='Season',value_name='Average PPG')
+    fig = px.line(df_for_vis_melted,x='Season',y='Average PPG',color='PLAYER NAME')
+    st.plotly_chart(fig)
+
+##TE
+avg_str = f"""
+                <style>
+                p.a {{
+                font: bold 35px Courier;text-align: center;
+                }}
+                </style>
+                <p class="a">Tightends</p>
+                """
+st.markdown(avg_str, unsafe_allow_html=True)
+
+gb = GridOptionsBuilder.from_dataframe(te_df)
+gb.configure_pagination(paginationAutoPageSize=True) #Add pagination
+gb.configure_side_bar() #Add a sidebar
+gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+gridOptions = gb.build()
+
+grid_response = AgGrid(
+    te_df,
+    gridOptions=gridOptions,
+    data_return_mode='AS_INPUT', 
+    update_mode='MODEL_CHANGED', 
+    fit_columns_on_grid_load=False,
+    theme='blue', #Add theme color to the table
+    enable_enterprise_modules=True,
+    height=400, 
+    width='100%',
+    reload_data=False
+)
+
+data = grid_response['data']
+selected = grid_response['selected_rows'] 
+df = pd.DataFrame(selected) #Pass the selected rows to a new dataframe df
+
+if not df.empty: 
+    col1,col2,col3 = st.columns(3)
+
+    with col1:
+        fig = px.bar(df,x='Player',y='Value',width=300, height=200)
+        st.plotly_chart(fig)
+
+    with col2:
+        fig = px.bar(df,x='Player',y='ECR VS. ADP',width=300, height=200)
+        st.plotly_chart(fig)
+    
+    with col3:
+        fig = px.bar(df,x='Player',y='Positional Saturation',width=300, height=200)
+        st.plotly_chart(fig)
+    for index,row in df.iterrows():
+        player_notes = notes_data.loc[notes_data['PLAYER NAME']==row['Player']]
+        st.subheader(player_notes['PLAYER NAME'].iloc[0])
+        st.write(player_notes['NOTES'].iloc[0])
+
+    df_for_vis = []
+    for index,row in df.iterrows():
+        last_5_scoped = last_5_data.loc[last_5_data['PLAYER NAME']==row['Player']]
+        last_5_scoped = last_5_scoped[['PLAYER NAME','PPG_2017','PPG_2018','PPG_2019','PPG_2020','PPG_2021']]
+        last_5_scoped.columns = ['PLAYER NAME','2017','2018','2019','2020','2021']
+        df_for_vis.append(last_5_scoped)
+        
+    df_for_vis = pd.concat(df_for_vis)
+    df_for_vis_melted = df_for_vis.melt(id_vars=['PLAYER NAME'],var_name='Season',value_name='Average PPG')
+    fig = px.line(df_for_vis_melted,x='Season',y='Average PPG',color='PLAYER NAME')
+    st.plotly_chart(fig)
